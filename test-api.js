@@ -37,16 +37,30 @@ async function testHealthCheck() {
 }
 
 // Teste da rota de scraping
-async function testScraping() {
+async function testScrapingHTML() {
   try {
     const response = await api.post('/scrape', {
       url: 'https://example.com'
     });
-    console.log('\n=== Teste de Scraping ===');
+    console.log('\n=== Teste de Scraping HTML ===');
     console.log('Status:', response.status);
     console.log('Dados:', JSON.stringify(response.data, null, 2));
   } catch (error) {
-    console.error('Erro no scraping:', error.response?.data || error.message);
+    console.error('\nErro no scraping em HTML:', error.response?.data || error.message);
+  }
+}
+
+async function testScrapingPDF() {
+  try {
+    const response = await api.post('/scrape', {
+      url: 'https://example.com',
+      pdfOutput: true
+    });
+    console.log('\n=== Teste de Scraping em PDF ===');
+    console.log('Status:', response.status);
+    console.log('Resposta:', JSON.stringify(response.headers, null, 2));
+  } catch (error) {
+    console.error('\nErro no scraping em PDF:', error.response?.data || error.message);
   }
 }
 
@@ -67,7 +81,7 @@ async function testInvalidUrl() {
 // Teste de token inválido
 async function testInvalidToken() {
   try {
-    const response = await axios.post(`${API_URL}/scrape`, 
+    const response = await axios.post(`${API_URL}/scrape`,
       { url: 'https://example.com' },
       { headers: { 'Authorization': 'Bearer invalid_token' } }
     );
@@ -85,9 +99,10 @@ async function testInvalidToken() {
 async function runTests() {
   await testRootRoute();
   await testHealthCheck();
-  await testScraping();
+  await testScrapingHTML();
+  await testScrapingPDF();
   await testInvalidUrl();
   await testInvalidToken();
 }
 
-runTests(); 
+runTests();

@@ -1,6 +1,8 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const cors = require('cors');
+const crypto = require('crypto');
+const fs = require('fs');
 
 // Inicialização do Express
 const app = express();
@@ -56,6 +58,9 @@ app.get('/health', (req, res) => {
 // Rota principal de scraping
 app.post('/scrape', authenticateToken, async (req, res) => {
   const { url } = req.body;
+  const { pdfOutput } = req.body;
+  const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
+  var html;
 
   if (!url) {
     return res.status(400).json({
@@ -83,20 +88,20 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     });
 
     const page = await browser.newPage();
-    
+
     // Configurações para simular um navegador real
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
-    
+
     // Configurar timeout mais longo para o Cloudflare
     await page.setDefaultNavigationTimeout(120000);
-    
+
     console.log('Navegando para a página...');
-    await page.goto(url, { 
+    await page.goto(url, {
       waitUntil: 'networkidle2',
-      timeout: 120000 
+      timeout: 120000
     });
-    
+
     console.log('Aguardando Cloudflare...');
     await new Promise(resolve => setTimeout(resolve, 15000));
 
@@ -109,26 +114,49 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       throw new Error('Proteção Cloudflare ainda ativa após timeout');
     }
 
-    console.log('Extraindo HTML...');
-    const html = await page.content();
-    console.log('HTML extraído com sucesso');
+    if (pdfOutput === true) {
+      console.log('Gerando PDF...');
+      await page.emulateMediaType('screen');
+      await page.pdf({
+        path: pdfFilename,
+      });
+      console.log('PDF gerado com sucesso');
+    } else {
+      console.log('Extraindo HTML...');
+      html = await page.content();
+      console.log('HTML extraído com sucesso');
+    }
 
     await browser.close();
-    // Retornando o HTML dentro de um JSON
-    res.json({
+
+    if (pdfOutput === true) {
+      // Retornando o PDF gerado como anexo
+      res.sendFile(__dirname + '/' + pdfFilename, (err) => {
+        if (err) {
+          throw new Error(err);
+        } else {
+          // PDF transferido, exclui cópia local
+          fs.unlinkSync(__dirname + '/' + pdfFilename);
+        }
+      });
+    } else {
+      // Retornando o HTML dentro de um JSON
+      res.json({
       success: true,
       data: {
         url: url,
         timestamp: new Date().toISOString(),
         html: html
       }
-    });
+      });
+    }
+
   } catch (error) {
     console.error('Erro durante o scraping:', error);
     if (browser) {
       await browser.close();
     }
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: error.message,
       url: url,

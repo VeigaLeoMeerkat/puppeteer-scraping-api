@@ -41,7 +41,7 @@ function Test-Scraping {
     param (
         [string]$url
     )
-    Write-Host "`nTestando scraping (POST /scrape)..." -ForegroundColor Cyan
+    Write-Host "`nTestando scraping em HTML (POST /scrape)..." -ForegroundColor Cyan
     try {
         $body = @{
             url = $url
@@ -56,10 +56,26 @@ function Test-Scraping {
     catch {
         Write-Host "Erro: $_" -ForegroundColor Red
     }
+	
+	Write-Host "`nTestando scraping em PDF (POST /scrape)..." -ForegroundColor Cyan
+    try {
+        $body = @{
+            url = $url
+			pdfOutput = $true
+        } | ConvertTo-Json
+
+        $response = Invoke-WebRequest -Uri "$baseUrl/scrape" -Method Post -Headers $headers -Body $body
+        Write-Host "Status: $($response.StatusCode)" -ForegroundColor Green
+        Write-Host "Resposta:"
+        $response.Headers | ConvertTo-Json
+    }
+    catch {
+        Write-Host "Erro: $_" -ForegroundColor Red
+    }
 }
 
 # Executar testes
 Write-Host "Iniciando testes da API..." -ForegroundColor Yellow
 Test-RootEndpoint
 Test-HealthCheck
-Test-Scraping -url "https://www.parliament.uk/business/news/"
+Test-Scraping -url "https://example.com"
