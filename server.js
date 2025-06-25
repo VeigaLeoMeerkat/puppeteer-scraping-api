@@ -116,6 +116,13 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     if (pdfOutput === true) {
       console.log('Gerando PDF...');
+      // clique em qualquer lugar da página sem ser um botão ou link
+      await page.evaluate(() => {
+        document.body.click();
+      });
+      // Aguardar um pouco para garantir que o clique seja registrado
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] });
       await page.emulateMediaType('screen');
       await page.pdf({
         path: pdfFilename,
