@@ -59,6 +59,7 @@ app.get('/health', (req, res) => {
 app.post('/scrape', authenticateToken, async (req, res) => {
   const { url } = req.body;
   const { pdfOutput } = req.body;
+  const { bodyOnly } = req.body;
   const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
   var html;
 
@@ -116,13 +117,18 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     if (pdfOutput === true) {
       console.log('Gerando PDF...');
-      // clique em qualquer lugar da página sem ser um botão ou link
-      await page.evaluate(() => {
-        document.body.click();
-      });
-      // Aguardar um pouco para garantir que o clique seja registrado
-      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Recarrega a página antes de capturar o PDF
       await page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] });
+
+      // Remove header e footer, se solicitado na requisição
+      if (bodyOnly === true) {
+        console.log('Removendo header e footer...');
+        await page.evaluate(() => {
+          const els = document.querySelectorAll('header, footer');
+          els.forEach(el => el.remove());
+        });
+      }
       await page.emulateMediaType('screen');
       await page.pdf({
         path: pdfFilename,
@@ -130,6 +136,15 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       console.log('PDF gerado com sucesso');
     } else {
       console.log('Extraindo HTML...');
+
+      // Remove header e footer, se solicitado na requisição
+      if (bodyOnly === true) {
+        console.log('Removendo header e footer...');
+        await page.evaluate(() => {
+          const els = document.querySelectorAll('header, footer');
+          els.forEach(el => el.remove());
+        });
+      }
       html = await page.content();
       console.log('HTML extraído com sucesso');
     }
