@@ -3,6 +3,13 @@ const puppeteer = require('puppeteer');
 const cors = require('cors');
 const crypto = require('crypto');
 const fs = require('fs');
+const fetch = require('cross-fetch');
+const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
+
+// Inicialização do Puppeteer Adblocker
+let blockerEngine = PuppeteerBlocker.fromLists(fetch, [
+  "https://secure.fanboy.co.nz/fanboy-annoyance.txt"   // Filtro para avisos de cookies, GDPR e outros banners/popups
+]);
 
 // Inicialização do Express
 const app = express();
@@ -60,6 +67,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
   const { url } = req.body;
   const { pdfOutput } = req.body;
   const { bodyOnly } = req.body;
+  const { disableFilters } = req.body;
   const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
   var html;
 
@@ -89,6 +97,22 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     });
 
     const page = await browser.newPage();
+
+    if (!disableFilters === true) {
+      console.log('Ativando filtros de conteúdo...');
+      const blocker = await blockerEngine;
+
+      // Ativa filtros customizados, se disponíveis
+      try {
+        blocker.updateFromDiff({
+          added: fs.readFileSync('./filter-custom-rules.txt', 'utf8').split(/\r?\n/)
+        });
+      } catch (error) {
+        console.warn('Problema ao ativar filtros customizados:', error);
+      }
+
+      await blocker.enableBlockingInPage(page);
+    }
 
     // Configurações para simular um navegador real
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36');
@@ -131,7 +155,9 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       }
       await page.emulateMediaType('screen');
       await page.pdf({
+        // Configurações do PDF
         path: pdfFilename,
+        printBackground: true
       });
       console.log('PDF gerado com sucesso');
     } else {
@@ -164,12 +190,12 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     } else {
       // Retornando o HTML dentro de um JSON
       res.json({
-      success: true,
-      data: {
-        url: url,
-        timestamp: new Date().toISOString(),
-        html: html
-      }
+        success: true,
+        data: {
+          url: url,
+          timestamp: new Date().toISOString(),
+          html: html
+        }
       });
     }
 
