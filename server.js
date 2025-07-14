@@ -1,10 +1,11 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
 const cors = require('cors');
 const crypto = require('crypto');
 const fs = require('fs');
 const fetch = require('cross-fetch');
 const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 // Inicialização do Puppeteer Adblocker
 let blockerEngine = PuppeteerBlocker.fromLists(fetch, [
@@ -83,6 +84,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
   try {
     // Configuração do Puppeteer
+    puppeteer.use(StealthPlugin());
     browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
@@ -108,7 +110,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
           added: fs.readFileSync('./filter-custom-rules.txt', 'utf8').split(/\r?\n/)
         });
       } catch (error) {
-        console.warn('Problema ao ativar filtros customizados:', error);
+        console.warn('Problema ao processar filtros customizados:', error);
       }
 
       await blocker.enableBlockingInPage(page);
@@ -132,7 +134,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     // Verificar se o Cloudflare ainda está presente
     const cloudflarePresent = await page.evaluate(() => {
-      return document.body.innerHTML.includes('cloudflare');
+      return document.querySelectorAll('.cf-error-footer, .ray-id').length > 0;
     });
 
     if (cloudflarePresent) {
@@ -200,7 +202,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Erro durante o scraping:', error);
+    console.error('Falha durante o scraping:', error);
     if (browser) {
       await browser.close();
     }
