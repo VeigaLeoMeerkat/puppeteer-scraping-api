@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const fetch = require('cross-fetch');
 const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const PuppeteerStealth = require('puppeteer-extra-plugin-stealth');
 
 // Inicialização do Puppeteer Adblocker
 let blockerEngine = PuppeteerBlocker.fromLists(fetch, [
@@ -84,7 +84,9 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
   try {
     // Configuração do Puppeteer
-    puppeteer.use(StealthPlugin());
+    const stealthPlugin = PuppeteerStealth();
+    stealthPlugin.enabledEvasions.delete('iframe.contentWindow');
+    puppeteer.use(stealthPlugin);
     browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
