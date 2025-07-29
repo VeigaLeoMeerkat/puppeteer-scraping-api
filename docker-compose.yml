@@ -12,6 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=8001
       - API_TOKEN=${API_TOKEN:-123}
+      - ZYTE_API_KEY=${ZYTE_API_KEY}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -24,9 +25,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
+          memory: 4G
         reservations:
-          memory: 3G
+          memory: 2G
 
 networks:
   app-network:

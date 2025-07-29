@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const fetch = require('cross-fetch');
 const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
+const PuppeteerProxy = require('puppeteer-extra-plugin-proxy');
 const PuppeteerStealth = require('puppeteer-extra-plugin-stealth');
 
 // Inicialização do Puppeteer Adblocker
@@ -69,6 +70,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
   const { pdfOutput } = req.body;
   const { bodyOnly } = req.body;
   const { disableFilters } = req.body;
+  const { useProxy } = req.body;
   const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
   var html;
 
@@ -87,6 +89,20 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     const stealthPlugin = PuppeteerStealth();
     stealthPlugin.enabledEvasions.delete('iframe.contentWindow');
     puppeteer.use(stealthPlugin);
+
+    if (useProxy === true) {
+      const proxyPlugin = PuppeteerProxy({
+        address: 'api.zyte.com',
+        port: 8011,
+        credentials: {
+          username: process.env.ZYTE_API_KEY,
+          password: ''
+        }
+      });
+      puppeteer.use(proxyPlugin);
+      console.log('Proxy configurado');
+    }
+
     browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
