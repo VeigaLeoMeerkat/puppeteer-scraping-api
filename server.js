@@ -73,6 +73,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
   const { useProxy } = req.body;
   const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
   var html;
+  var timeout = 120000; // 2 minutos
 
   if (!url) {
     return res.status(400).json({
@@ -91,6 +92,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     puppeteer.use(stealthPlugin);
 
     if (useProxy === true) {
+      timeout = 240000; // Aumenta o timeout para 4 minutos se usar proxy
       const proxyPlugin = PuppeteerProxy({
         address: 'api.zyte.com',
         port: 8011,
@@ -139,12 +141,12 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     await page.setViewport({ width: 1920, height: 1080 });
 
     // Configurar timeout mais longo para o Cloudflare
-    await page.setDefaultNavigationTimeout(120000);
+    await page.setDefaultNavigationTimeout(timeout);
 
     console.log('Navegando para a página...');
     await page.goto(url, {
       waitUntil: 'networkidle2',
-      timeout: 120000
+      timeout: timeout
     });
 
     console.log('Aguardando Cloudflare...');
