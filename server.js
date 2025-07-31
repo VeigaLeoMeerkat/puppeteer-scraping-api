@@ -45,7 +45,7 @@ app.use(cors()); // Permite requisições de diferentes origens
 app.get('/', (req, res) => {
   res.json({
     message: 'Bem-vindo à API de Web Scraping',
-    version: '1.0.0',
+    version: '1.1.0',
     environment: NODE_ENV,
     endpoints: [
       { method: 'GET', path: '/' },
@@ -67,14 +67,16 @@ app.get('/health', (req, res) => {
 // Rota principal de scraping
 app.post('/scrape', authenticateToken, async (req, res) => {
   const { url } = req.body;
+  const { timeout } = req.body || 120000; // Padrão de 2 minutos
   const { pdfOutput } = req.body;
   const { bodyOnly } = req.body;
   const { disableFilters } = req.body;
   const { useProxy } = req.body;
   const { normalizeUrls } = req.body;
+  const { requestBlockPattern } = req.body;
+  const { injectJs } = req.body;
   const pdfFilename = crypto.randomBytes(16).toString("hex") + '.pdf';
   var html;
-  var timeout = 120000; // 2 minutos
 
   if (!url) {
     return res.status(400).json({
@@ -92,8 +94,8 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     stealthPlugin.enabledEvasions.delete('iframe.contentWindow');
     puppeteer.use(stealthPlugin);
 
+    // Ativa proxy, se solicitado na requisição
     if (useProxy === true) {
-      timeout = 240000; // Aumenta o timeout para 4 minutos se usar proxy
       const proxyPlugin = PuppeteerProxy({
         address: 'api.zyte.com',
         port: 8011,
@@ -106,6 +108,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       console.log('Proxy configurado');
     }
 
+    // Inicializa o navegador
     browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
@@ -121,11 +124,26 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     const page = await browser.newPage();
 
+    // Ativa bloqueio de requisições, se solicitado na requisição
+    if (requestBlockPattern) {
+      await page.setRequestInterception(true);
+      page.on('request', interceptedRequest => {
+        if (interceptedRequest.isInterceptResolutionHandled())
+          return;
+        const re = new RegExp(requestBlockPattern);
+        if (re.test(interceptedRequest.url()))
+          interceptedRequest.abort();
+        else
+          interceptedRequest.continue();
+      });
+    }
+
+    // Ativa filtros de conteúdo, se não foram desativados na requisição
     if (!disableFilters === true) {
       console.log('Ativando filtros de conteúdo...');
       const blocker = await blockerEngine;
 
-      // Ativa filtros customizados, se disponíveis
+      // Carrega filtros customizados, se disponíveis
       try {
         blocker.updateFromDiff({
           added: fs.readFileSync('./filter-custom-rules.txt', 'utf8').split(/\r?\n/)
@@ -140,8 +158,6 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     // Configurações para simular um navegador real
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
-
-    // Configurar timeout mais longo para o Cloudflare
     await page.setDefaultNavigationTimeout(timeout);
 
     console.log('Navegando para a página...');
@@ -151,7 +167,7 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     });
 
     console.log('Aguardando Cloudflare...');
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     // Verificar se o Cloudflare ainda está presente
     const cloudflarePresent = await page.evaluate(() => {
@@ -169,7 +185,6 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     // Remove header e footer, se solicitado na requisição
     if (bodyOnly === true) {
-
       console.log('Removendo header e footer...');
       await page.evaluate(() => {
         document.querySelector('header')?.remove();
@@ -179,7 +194,6 @@ app.post('/scrape', authenticateToken, async (req, res) => {
 
     // Normaliza URLs, se solicitado na requisição
     if (normalizeUrls === true) {
-
       console.log('Normalizando URLs...');
       await page.evaluate(() => {
         // Seletores
@@ -255,6 +269,12 @@ app.post('/scrape', authenticateToken, async (req, res) => {
         }
       });
       await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    // Injeta JavaScript na página, se fornecido na requisição
+    if (injectJs) {
+      console.log('Injetando JavaScript...');
+      await page.evaluate(injectJs);
     }
 
     if (pdfOutput === true) {
