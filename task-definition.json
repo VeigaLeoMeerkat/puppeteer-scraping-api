@@ -1,7 +1,9 @@
 {
   "family": "puppeteer-scraping-api",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "2048",
   "memory": "4096",
   "containerDefinitions": [
@@ -26,6 +28,10 @@
         {
           "name": "API_TOKEN",
           "value": "${API_TOKEN}"
+        },
+        {
+          "name": "ZYTE_API_KEY",
+          "value": "${ZYTE_API_KEY}"
         }
       ],
       "logConfiguration": {
@@ -38,4 +44,4 @@
       }
     }
   ]
-} 
+}
