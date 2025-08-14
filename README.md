@@ -100,6 +100,7 @@ Exemplo de requisição, com parâmetros padrões:
     "disableFilters": false,
     "useProxy": false,
     "normalizeUrls": false,
+    "removeInvisibleElements": false,
     "requestBlockPattern": "<regex string>",
     "injectJs": "<js code>"
 }
@@ -112,6 +113,7 @@ Na requisição, apenas o parâmetro `url` é obrigatório, todos os outros par�
 * `disableFilters`: desativa o filtro de elementos indesejados (avisos de cookies, popups, entre outros) antes de capturar o HTML/PDF
 * `useProxy`: roteia as requisições do Puppeteer pelo proxy fornecido pela API do Zyte
 * `normalizeUrls`: reescreve o código HTML da página, substituindo todas as URLs relativas (`/pagina/1`) por URLs absolutas (`https://example.com/page/1`), antes de capturar o HTML/PDF
+* `removeInvisibleElements`: remove todos os elementos não visíveis na página antes de capturar o HTML/PDF
 * `requestBlockPattern`: bloqueia todas as requisições da página que correspondam ao padrão RegEx informado neste parâmetro antes de capturar o HTML/PDF
 * `injectJs`: executa o código JavaScript informado dentro da página antes de capturar o HTML/PDF
 
