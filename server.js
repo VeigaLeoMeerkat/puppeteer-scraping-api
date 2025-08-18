@@ -6,6 +6,7 @@ const fs = require('fs');
 const fetch = require('cross-fetch');
 const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
 const PuppeteerProxy = require('puppeteer-extra-plugin-proxy');
+const PuppeteerRecaptcha = require('puppeteer-extra-plugin-recaptcha');
 const PuppeteerStealth = require('puppeteer-extra-plugin-stealth');
 
 // Inicialização do Puppeteer Adblocker
@@ -45,7 +46,7 @@ app.use(cors()); // Permite requisições de diferentes origens
 app.get('/', (req, res) => {
   res.json({
     message: 'Bem-vindo à API de Web Scraping',
-    version: '1.1.0',
+    version: '1.2.0',
     environment: NODE_ENV,
     endpoints: [
       { method: 'GET', path: '/' },
@@ -94,6 +95,18 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     const stealthPlugin = PuppeteerStealth();
     stealthPlugin.enabledEvasions.delete('iframe.contentWindow');
     puppeteer.use(stealthPlugin);
+
+    const recaptchaPlugin = PuppeteerRecaptcha({
+      provider: {
+        id: '2captcha',
+        token: process.env.TWOCAPTCHA_API_KEY
+      },
+      solveInViewportOnly: true,
+      throwOnError: true,
+      visualFeedback: true
+    });
+    puppeteer.use(recaptchaPlugin);
+    console.log('API do 2Captcha configurada');
 
     // Ativa proxy, se solicitado na requisição
     if (useProxy === true) {
@@ -167,16 +180,25 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       timeout: timeout
     });
 
-    console.log('Aguardando Cloudflare...');
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    console.log('Detectando captchas...');
+    var { captchas } = await page.findRecaptchas();
+    if (captchas.length > 0) {
+      console.log(`Resolvendo ${captchas.length} captchas...`);
+      try {
+        page.solveRecaptchas();
+      } catch (error) {
+        throw new Error('Falha ao resolver captchas: ' + error);
+      }
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 
-    // Verificar se o Cloudflare ainda está presente
+    // Verificar se o Cloudflare está presente
     const cloudflarePresent = await page.evaluate(() => {
       return document.querySelectorAll('.cf-error-footer, .ray-id').length > 0;
     });
 
     if (cloudflarePresent) {
-      throw new Error('Proteção Cloudflare ainda ativa após timeout');
+      throw new Error('Proteção Cloudflare não pôde ser contornada');
     }
 
     // Recarrega a página antes de capturar o PDF
