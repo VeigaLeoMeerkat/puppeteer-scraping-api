@@ -11,11 +11,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8001
-      - API_TOKEN=${API_TOKEN}  # Deve ser definido no ambiente
-      - ZYTE_API_KEY=${ZYTE_API_KEY}  # Deve ser definido no ambiente
+      - API_TOKEN=${API_TOKEN} # Deve ser definido no ambiente
+      - ZYTE_API_KEY=${ZYTE_API_KEY} # Deve ser definido no ambiente
+      - TWOCAPTCHA_API_KEY=${TWOCAPTCHA_API_KEY} # Deve ser definido no ambiente
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -27,4 +28,4 @@ services:
           memory: 4G
         reservations:
           cpus: '1'
-          memory: 2G 
+          memory: 2G

@@ -6,6 +6,7 @@ const fs = require('fs');
 const fetch = require('cross-fetch');
 const { PuppeteerBlocker } = require('@ghostery/adblocker-puppeteer');
 const PuppeteerProxy = require('puppeteer-extra-plugin-proxy');
+const PuppeteerRecaptcha = require('puppeteer-extra-plugin-recaptcha');
 const PuppeteerStealth = require('puppeteer-extra-plugin-stealth');
 
 // Inicialização do Puppeteer Adblocker
@@ -45,7 +46,7 @@ app.use(cors()); // Permite requisições de diferentes origens
 app.get('/', (req, res) => {
   res.json({
     message: 'Bem-vindo à API de Web Scraping',
-    version: '1.1.0',
+    version: '1.2.0',
     environment: NODE_ENV,
     endpoints: [
       { method: 'GET', path: '/' },
@@ -94,6 +95,20 @@ app.post('/scrape', authenticateToken, async (req, res) => {
     const stealthPlugin = PuppeteerStealth();
     stealthPlugin.enabledEvasions.delete('iframe.contentWindow');
     puppeteer.use(stealthPlugin);
+
+    // Configuração do solucionador de CAPTCHAs
+    const recaptchaPlugin = PuppeteerRecaptcha({
+      provider: {
+        id: '2captcha',
+        token: process.env.TWOCAPTCHA_API_KEY
+      },
+      solveInactiveChallenges: true,
+      solveInViewportOnly: false,
+      solveScoreBased: true,
+      throwOnError: false,
+      visualFeedback: true
+    });
+    puppeteer.use(recaptchaPlugin);
 
     // Ativa proxy, se solicitado na requisição
     if (useProxy === true) {
@@ -167,20 +182,49 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       timeout: timeout
     });
 
-    console.log('Aguardando Cloudflare...');
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Detecta e resolve CAPTCHAs, se presentes
+    console.log('Detectando CAPTCHA...');
+    var { captchas, filtered, error } = await page.findRecaptchas();
+    if (error) {
+      throw new Error('Falha ao detectar CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
+    }
 
-    // Verificar se o Cloudflare ainda está presente
+    if (captchas) {
+      var retries = 1;
+      console.log('CAPTCHA detectado, resolvendo...');
+      var { solutions, error } = await page.getRecaptchaSolutions(captchas);
+      if (error) {
+        while (true) {
+          retries++;
+          console.log('Falha na resolução do CAPTCHA, tentando novamente...');
+          var { solutions, error } = await page.getRecaptchaSolutions(captchas);
+          if (!error)
+            break;
+
+          if (retries >= 3)
+            throw new Error('Falha ao resolver CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
+        }
+      }
+    }
+
+    console.log('Solucionando CAPTCHA...');
+    var { solved, error } = await page.enterRecaptchaSolutions(solutions);
+    if (error) {
+      throw new Error('Falha ao solucionar CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
+    }
+    await page.waitForNetworkIdle();
+
+    // Verificar se o Cloudflare está presente
     const cloudflarePresent = await page.evaluate(() => {
       return document.querySelectorAll('.cf-error-footer, .ray-id').length > 0;
     });
 
     if (cloudflarePresent) {
-      throw new Error('Proteção Cloudflare ainda ativa após timeout');
+      throw new Error('Acesso bloqueado pelo Cloudflare mesmo após mitigações');
     }
 
-    // Recarrega a página antes de capturar o PDF
-    if (pdfOutput === true) {
+    // Recarrega a página antes de capturar o PDF (somente se CAPTCHAs não foram solucionados)
+    if (pdfOutput === true && !solved) {
       await page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] });
     }
 

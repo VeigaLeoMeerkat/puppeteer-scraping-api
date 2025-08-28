@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:lts-slim
 
 # Instala dependências necessárias para o Puppeteer e ferramentas de sistema
 RUN apt-get update \

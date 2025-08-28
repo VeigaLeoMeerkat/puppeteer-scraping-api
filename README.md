@@ -60,7 +60,7 @@ docker build -t puppeteer-scraping-api .
 
 2. Execute o container:
 ```bash
-docker run -p 8001:8001 -e API_TOKEN=seu_token_aqui -e ZYTE_API_KEY=chave_de_api_aqui puppeteer-scraping-api
+docker run -p 8001:8001 -e API_TOKEN=seu_token_aqui -e ZYTE_API_KEY=chave_de_api_aqui -e TWOCAPTCHA_API_KEY=chave_de_api_aqui puppeteer-scraping-api
 ```
 
 ## 📚 Documentação da API
@@ -158,6 +158,7 @@ Test-Scraping -url "https://exemplo.com"
 - Em ambiente de desenvolvimento, um token padrão '123' é utilizado
 - Em produção, sempre use um token forte e único
 - Para utilizar a funcionalidade de proxy, uma chave de acesso válida para a [API do Zyte](https://www.zyte.com/zyte-web-scraping-api/) deve ser configurada através da variável de ambiente `ZYTE_API_KEY`
+- Para resolver automaticamente desafios do reCaptcha / hCaptcha, uma chave de acesso válida para a [API do 2Captcha](https://www.2captcha.com/) deve ser configurada através da variável de ambiente `TWOCAPTCHA_API_KEY`
 
 ## 🐛 Solução de Problemas
 
@@ -181,6 +182,7 @@ Test-Scraping -url "https://exemplo.com"
 - O projeto utiliza Puppeteer para web scraping
 - Implementa bypass de proteção Cloudflare
 - Suporta proxy opcional através do Zyte API
+- Suporta resolução de reCaptcha / hCaptcha através do 2Captcha
 - Suporta CORS para integração com frontends
 - Inclui tratamento de erros robusto
 - Logs detalhados para debugging
