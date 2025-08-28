@@ -46,7 +46,7 @@ app.use(cors()); // Permite requisições de diferentes origens
 app.get('/', (req, res) => {
   res.json({
     message: 'Bem-vindo à API de Web Scraping',
-    version: '1.2.0',
+    version: '1.2.1',
     environment: NODE_ENV,
     endpoints: [
       { method: 'GET', path: '/' },
@@ -182,14 +182,15 @@ app.post('/scrape', authenticateToken, async (req, res) => {
       timeout: timeout
     });
 
-    // Detecta e resolve CAPTCHAs, se presentes
+    // Detecta a presença de CAPTCHAs
     console.log('Detectando CAPTCHA...');
     var { captchas, filtered, error } = await page.findRecaptchas();
     if (error) {
       throw new Error('Falha ao detectar CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
     }
 
-    if (captchas) {
+    // Soluciona CAPTCHAs, se presentes
+    if (captchas.length > 0) {
       var retries = 1;
       console.log('CAPTCHA detectado, resolvendo...');
       var { solutions, error } = await page.getRecaptchaSolutions(captchas);
@@ -205,14 +206,14 @@ app.post('/scrape', authenticateToken, async (req, res) => {
             throw new Error('Falha ao resolver CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
         }
       }
-    }
 
-    console.log('Solucionando CAPTCHA...');
-    var { solved, error } = await page.enterRecaptchaSolutions(solutions);
-    if (error) {
-      throw new Error('Falha ao solucionar CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
+      console.log('Aplicando solução do CAPTCHA...');
+      var { solved, error } = await page.enterRecaptchaSolutions(solutions);
+      if (error) {
+        throw new Error('Falha ao aplicar solução do CAPTCHA:\n\n' + JSON.stringify(error, null, 2));
+      }
+      await page.waitForNetworkIdle();
     }
-    await page.waitForNetworkIdle();
 
     // Verificar se o Cloudflare está presente
     const cloudflarePresent = await page.evaluate(() => {

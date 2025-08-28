@@ -3,6 +3,7 @@ FROM node:lts-slim
 # Instala dependências necessárias para o Puppeteer e ferramentas de sistema
 RUN apt-get update \
     && apt-get install -y \
+    tini \
     wget \
     gnupg \
     curl \
@@ -52,6 +53,9 @@ ENV PORT=8001
 
 # Expõe a porta
 EXPOSE 8001
+
+# Configura o Tini como o init system
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Comando para iniciar a aplicação
 CMD [ "npm", "start" ] 
